@@ -1,0 +1,21 @@
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+apply plugin: 'expo-module-gradle-plugin'
+
+group = 'expo.modules.locationtracking'
+version = '0.1.0'
+
+android {
+  namespace "expo.modules.locationtracking"
+  defaultConfig {
+    versionCode 1
+    versionName "0.1.0"
+  }
+}
+
+dependencies {
+  // 👇 Вот эти зависимости нужны для FusedLocationProviderClient
+  implementation 'com.google.android.gms:play-services-location:21.0.1'
+  implementation 'androidx.core:core-ktx:1.12.0'
+  implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+}
