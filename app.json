@@ -39,15 +39,7 @@
     "plugins": [
       "expo-secure-store",
       "@maplibre/maplibre-react-native",
-      "expo-task-manager",
-      "./withLocationService",
-      [
-        "expo-location",
-        {
-          "isAndroidBackgroundLocationEnabled": true,
-          "isAndroidForegroundServiceEnabled": true
-        }
-      ]
+      "./withLocationService"
     ],
     "extra": {
       "eas": {

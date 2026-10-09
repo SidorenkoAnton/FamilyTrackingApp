@@ -35,17 +35,20 @@ class LocationTrackingService : Service() {
         createNotificationChannel()
     }
 
+    private var isTracking = false
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.d(TAG, "Service Started")
-
-        // 1. Создаем уведомление и переводим сервис в Foreground
         val notification = createNotification("Отслеживание местоположения активно")
         startForeground(NOTIFICATION_ID, notification)
 
-        // 2. Начинаем запрашивать обновления локации
-        startLocationUpdates()
+        if (!isTracking) {
+            startLocationUpdates()
+            isTracking = true
+        } else {
+            Log.d(TAG, "Location updates already running")
+        }
 
-        // 3. START_STICKY перезапустит сервис, если система его убьет
         return START_STICKY
     }
 
@@ -102,6 +105,7 @@ class LocationTrackingService : Service() {
         super.onDestroy()
         Log.d(TAG, "Service Destroyed")
         fusedLocationClient.removeLocationUpdates(locationCallback)
+        isTracking = false // 👈 добавь это
     }
 
     override fun onBind(intent: Intent?): IBinder? {

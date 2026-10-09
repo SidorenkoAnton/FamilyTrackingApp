@@ -1,16 +1,11 @@
 import React, { useCallback, useState } from 'react';
 import * as Updates from 'expo-updates';
-import * as TaskManager from 'expo-task-manager';
 import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import { Map, Camera, Marker } from '@maplibre/maplibre-react-native';
 import { Text, Button } from 'react-native-paper';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/client';
-import {
-  BACKGROUND_LOCATION_TASK,
-  ensureTracking,
-} from '../services/BackgroundLocationService';
 
 const STYLE_URL = 'https://104.252.111.131/tiles/styles/colorful/style.json';
 
@@ -78,21 +73,6 @@ export const MapScreen: React.FC = () => {
     }, [loadLocations]),
   );
 
-  const handleStartTracking = async () => {
-    setTrackingMessage('');
-    try {
-      const isRegistered = await TaskManager.isTaskRegisteredAsync(
-        BACKGROUND_LOCATION_TASK,
-      );
-      console.log('[MAP] Фоновая задача зарегистрирована?', isRegistered);
-      await ensureTracking();
-      await loadLocations(false);
-      setTrackingMessage('Трекинг включён — подробности в логах');
-    } catch (e: any) {
-      setTrackingMessage(e?.message || 'Не удалось включить отслеживание');
-    }
-  };
-
   if (loading) {
     return (
       <View style={styles.center}>
@@ -155,13 +135,6 @@ export const MapScreen: React.FC = () => {
           style={{ marginBottom: 10 }}
         >
           Обновить
-        </Button>
-        <Button
-          mode="outlined"
-          onPress={handleStartTracking}
-          style={{ marginBottom: 10 }}
-        >
-          Включить отслеживание
         </Button>
         {trackingMessage ? (
           <Text style={styles.trackingMessage}>{trackingMessage}</Text>

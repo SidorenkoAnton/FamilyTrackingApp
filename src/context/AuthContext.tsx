@@ -7,6 +7,7 @@ import {
   ensureTracking,
   stopBackgroundTracking,
 } from '../services/BackgroundLocationService';
+import { requestLocationPermissions } from '../utils/common';
 
 interface AuthContextData {
   user: User | null;
@@ -53,7 +54,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setToken(storedToken);
         const response = await api.get('/auth/me');
         setUser(response.data);
-        await ensureTracking();
+        const permissionsGranted = await requestLocationPermissions();
+        if (permissionsGranted) {
+          await ensureTracking();
+        } else {
+          console.warn('[TRACKING] Разрешения на геолокацию не выданы');
+        }
       }
     } catch (error) {
       console.log('Ошибка загрузки токена:', error);
@@ -71,7 +77,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     const meResponse = await api.get('/auth/me');
     setUser(meResponse.data);
-    await ensureTracking();
+    const permissionsGranted = await requestLocationPermissions();
+    if (permissionsGranted) {
+      await ensureTracking();
+    } else {
+      console.warn('[TRACKING] Разрешения на геолокацию не выданы');
+    }
   };
 
   const register = async (email: string, password: string, name?: string) => {
@@ -83,7 +94,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     const meResponse = await api.get('/auth/me');
     setUser(meResponse.data);
-    await ensureTracking();
+    const permissionsGranted = await requestLocationPermissions();
+    if (permissionsGranted) {
+      await ensureTracking();
+    } else {
+      console.warn('[TRACKING] Разрешения на геолокацию не выданы');
+    }
   };
 
   const logout = async () => {
