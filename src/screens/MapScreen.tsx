@@ -2,10 +2,11 @@ import React, { useCallback, useState } from 'react';
 import * as Updates from 'expo-updates';
 import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import { Map, Camera, Marker } from '@maplibre/maplibre-react-native';
-import { Text, Button } from 'react-native-paper';
+import { Text, Button, IconButton } from 'react-native-paper';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/client';
+import RefreshButton from '../components/RefreshButton/RefreshButton';
 
 const STYLE_URL = 'https://104.252.111.131/tiles/styles/colorful/style.json';
 
@@ -28,7 +29,6 @@ export const MapScreen: React.FC = () => {
   const [locations, setLocations] = useState<LocationData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [trackingMessage, setTrackingMessage] = useState('');
 
   const checkForUpdates = async () => {
   try {
@@ -81,6 +81,10 @@ export const MapScreen: React.FC = () => {
       </View>
     );
   }
+
+  const handleRefresh = async () => {
+    return await loadLocations(false)
+  }
   return (
     <View style={styles.container}>
       <Map
@@ -129,16 +133,7 @@ export const MapScreen: React.FC = () => {
       ) : null}
 
       <View style={styles.overlay}>
-        <Button
-          mode="contained"
-          onPress={() => loadLocations(false)}
-          style={{ marginBottom: 10 }}
-        >
-          Обновить
-        </Button>
-        {trackingMessage ? (
-          <Text style={styles.trackingMessage}>{trackingMessage}</Text>
-        ) : null}
+        <RefreshButton handleClick={handleRefresh}/>
         <Button mode="outlined" onPress={logout} textColor="#f44336">
           Выйти
         </Button>

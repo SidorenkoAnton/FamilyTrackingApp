@@ -39,7 +39,8 @@
     "plugins": [
       "expo-secure-store",
       "@maplibre/maplibre-react-native",
-      "./withLocationService"
+      "./withLocationService",
+      "expo-font"
     ],
     "extra": {
       "eas": {
