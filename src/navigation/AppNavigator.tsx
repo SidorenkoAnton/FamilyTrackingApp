@@ -11,6 +11,7 @@ import { CreateGroupScreen } from '../screens/CreateGroupScreen';
 import { GroupDetailScreen } from '../screens/GroupDetailScreen';
 import { JoinGroupScreen } from '../screens/JoinGroupScreen';
 import { CreateInviteScreen } from '../screens/CreateInviteScreen';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -25,10 +26,38 @@ const GroupsStack = () => (
 );
 
 const MainTabs = () => (
-  <Tab.Navigator>
-    <Tab.Screen name="Map" component={MapScreen} options={{ title: 'Карта' }} />
-    <Tab.Screen name="Groups" component={GroupsStack} options={{ title: 'Группы', headerShown: false }} />
-    <Tab.Screen name="Join" component={JoinGroupScreen} options={{ title: 'Присоединиться' }} />
+<Tab.Navigator>
+    <Tab.Screen
+      name="Map"
+      component={MapScreen}
+      options={{
+        title: 'Карта',
+        tabBarIcon: ({ color, size }) => (
+          <MaterialCommunityIcons name="map" color={color} size={size} />
+        ),
+      }}
+    />
+    <Tab.Screen
+      name="Groups"
+      component={GroupsStack}
+      options={{
+        title: 'Группы',
+        headerShown: false,
+        tabBarIcon: ({ color, size }) => (
+          <MaterialCommunityIcons name="account-group" color={color} size={size} />
+        ),
+      }}
+    />
+    <Tab.Screen
+      name="Join"
+      component={JoinGroupScreen}
+      options={{
+        title: 'Присоединиться',
+        tabBarIcon: ({ color, size }) => (
+          <MaterialCommunityIcons name="account" color={color} size={size} />
+        ),
+      }}
+    />
   </Tab.Navigator>
 );
 
