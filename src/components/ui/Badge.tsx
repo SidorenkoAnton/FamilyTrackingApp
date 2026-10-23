@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import { radius, spacing } from '../../design/tokens';
 import { useAppTheme } from '../../design/ThemeContext';
 import type { Role } from '../../types';
+import { normalizeRole } from '../../utils/roles';
 import { AppText } from './AppText';
 
 export type BadgeTone = 'neutral' | 'primary' | 'success' | 'warning' | 'danger' | 'info';
@@ -54,16 +55,33 @@ const ROLE_CONFIG: Record<Role, { label: string; tone: BadgeTone; icon: IconName
   child: { label: 'Ребёнок', tone: 'primary', icon: 'human-child' },
 };
 
-export function roleLabel(role: Role): string {
-  return ROLE_CONFIG[role]?.label ?? role;
+export function roleLabel(role: string): string {
+  const normalized = normalizeRole(role);
+  return normalized ? ROLE_CONFIG[normalized].label : role;
 }
 
-export function RoleBadge({ role }: { role: Role }) {
-  const config = ROLE_CONFIG[role] ?? {
-    label: role,
-    tone: 'neutral' as BadgeTone,
-    icon: 'account-outline' as IconName,
-  };
+export function RoleBadge({ role }: { role: string }) {
+  const normalized = role?.trim().toLowerCase();
+
+  // Keep the backend's ownership distinction visible: the owner is the only
+  // person who can delete the group.
+  if (normalized === 'owner') {
+    return <Badge label="Владелец" tone="warning" icon="crown-outline" />;
+  }
+  if (normalized === 'superadmin') {
+    return (
+      <Badge label="Суперадмин" tone="danger" icon="shield-account-outline" />
+    );
+  }
+
+  const normalizedRole = normalizeRole(role);
+  const config = normalizedRole
+    ? ROLE_CONFIG[normalizedRole]
+    : {
+        label: role || 'Участник',
+        tone: 'neutral' as BadgeTone,
+        icon: 'account-outline' as IconName,
+      };
 
   return <Badge label={config.label} tone={config.tone} icon={config.icon} />;
 }

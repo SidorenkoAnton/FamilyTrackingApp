@@ -8,6 +8,7 @@ import type {
   Role,
   User,
 } from '../types';
+import { normalizeUser } from '../utils/user';
 import api from './client';
 
 /** Typed endpoint functions. Screens never build URLs themselves. */
@@ -25,13 +26,15 @@ export const authApi = {
       })
     ).data,
 
-  me: async (): Promise<User> => (await api.get<User>('/auth/me')).data,
+  // /auth/me returns the JWT payload ({ userId, email }), not a User entity.
+  me: async (): Promise<User> => normalizeUser((await api.get('/auth/me')).data),
 };
 
 export const groupsApi = {
   list: async (): Promise<GroupMembership[]> => {
     const data = (await api.get<GroupMembership[]>('/groups')).data;
-    return Array.isArray(data) ? data : [];
+    if (!Array.isArray(data)) return [];
+    return data.filter((item) => Boolean(item?.group?.id));
   },
 
   detail: async (groupId: string): Promise<GroupDetail> =>
@@ -67,6 +70,14 @@ export const groupsApi = {
 export const locationsApi = {
   latest: async (): Promise<MemberLocation[]> => {
     const data = (await api.get<MemberLocation[]>('/locations/latest')).data;
-    return Array.isArray(data) ? data : [];
+    if (!Array.isArray(data)) return [];
+
+    // Never let one malformed row crash the map.
+    return data.filter(
+      (item) =>
+        Boolean(item?.user?.id) &&
+        Number.isFinite(item.latitude) &&
+        Number.isFinite(item.longitude),
+    );
   },
 };

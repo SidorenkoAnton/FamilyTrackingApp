@@ -29,6 +29,7 @@ import {
   type LocationPermissionSummary,
 } from '../utils/permissions';
 import { openAppSettings, openBatteryOptimizationSettings } from '../utils/linking';
+import { displayName } from '../utils/user';
 
 export function AccountScreen() {
   const { user, trackingActive, isChildRole, logout, refreshUser, setupTracking, syncTracking } =
@@ -183,7 +184,7 @@ export function AccountScreen() {
             />
             <View style={{ flex: 1, gap: 3 }}>
               <AppText variant="headline" numberOfLines={1}>
-                {user?.name?.trim() || 'Без имени'}
+                {displayName(user)}
               </AppText>
               <AppText variant="body" tone="textSecondary" numberOfLines={1}>
                 {user?.email}

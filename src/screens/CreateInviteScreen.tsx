@@ -194,7 +194,7 @@ function CodeBoxes({ code }: { code: string }) {
         flexDirection: 'row',
         flexWrap: 'wrap',
         justifyContent: 'center',
-        gap: spacing.sm,
+        gap: 6,
         marginVertical: spacing.lg,
       }}
     >
@@ -204,8 +204,8 @@ function CodeBoxes({ code }: { code: string }) {
           style={{
             flexGrow: 1,
             flexBasis: 0,
-            minWidth: 30,
-            maxWidth: 48,
+            minWidth: 24,
+            maxWidth: 46,
             height: 56,
             borderRadius: radius.md,
             backgroundColor: colors.surfaceMuted,

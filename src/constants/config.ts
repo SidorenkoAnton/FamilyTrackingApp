@@ -28,7 +28,8 @@ export const LOCATION_POLL_INTERVAL_MS = 20_000;
 export const ONLINE_THRESHOLD_MS = 3 * 60_000;
 
 export const INVITE_TTL_MINUTES = 15;
-export const INVITE_CODE_LENGTH = 6;
+/** The backend generates 4 random bytes as hex, i.e. 8 characters. */
+export const INVITE_CODE_LENGTH = 8;
 
 export const TOKEN_STORAGE_KEY = 'access_token';
 export const USER_CACHE_KEY = 'auth.user';

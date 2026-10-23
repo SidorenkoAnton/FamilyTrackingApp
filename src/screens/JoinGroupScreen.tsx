@@ -14,6 +14,7 @@ import {
   useToast,
 } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
+import { INVITE_CODE_LENGTH } from '../constants/config';
 import { spacing } from '../design/tokens';
 import { useAppTheme } from '../design/ThemeContext';
 import type { GroupsScreenProps } from '../navigation/types';
@@ -35,8 +36,8 @@ export function JoinGroupScreen({ navigation, route }: GroupsScreenProps<'JoinGr
 
   const handleJoin = useCallback(async () => {
     const normalized = normalizeInviteCode(code);
-    if (normalized.length < 4) {
-      setError('Код слишком короткий');
+    if (normalized.length < INVITE_CODE_LENGTH) {
+      setError(`Код должен состоять из ${INVITE_CODE_LENGTH} символов`);
       return;
     }
 
@@ -170,7 +171,7 @@ export function JoinGroupScreen({ navigation, route }: GroupsScreenProps<'JoinGr
             Введите код приглашения
           </AppText>
           <AppText variant="body" tone="textSecondary" center style={{ maxWidth: 300 }}>
-            Родитель пришлёт код из 6 символов. Он действует 15 минут.
+            Родитель пришлёт код из {INVITE_CODE_LENGTH} символов. Он действует 15 минут.
           </AppText>
         </View>
 
@@ -183,7 +184,7 @@ export function JoinGroupScreen({ navigation, route }: GroupsScreenProps<'JoinGr
           }}
           autoCapitalize="characters"
           autoCorrect={false}
-          maxLength={8}
+          maxLength={INVITE_CODE_LENGTH}
           editable={!joining}
           errorText={error}
           contentStyle={{
@@ -207,7 +208,7 @@ export function JoinGroupScreen({ navigation, route }: GroupsScreenProps<'JoinGr
           large
           onPress={handleJoin}
           loading={joining}
-          disabled={code.length < 4}
+          disabled={code.length < INVITE_CODE_LENGTH}
         />
 
         <InlineBanner

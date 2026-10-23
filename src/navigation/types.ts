@@ -9,7 +9,7 @@ import type {
 export type GroupsStackParamList = {
   GroupsList: undefined;
   CreateGroup: undefined;
-  GroupDetail: { groupId: string; groupName?: string };
+  GroupDetail: { groupId: string; groupName?: string; role?: string };
   CreateInvite: { groupId: string; groupName?: string };
   JoinGroup: { code?: string } | undefined;
 };

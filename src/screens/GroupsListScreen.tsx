@@ -160,6 +160,7 @@ export function GroupsListScreen({ navigation }: GroupsScreenProps<'GroupsList'>
                   navigation.navigate('GroupDetail', {
                     groupId: item.group.id,
                     groupName: item.group.name,
+                    role: item.role,
                   })
                 }
               />

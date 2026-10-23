@@ -1,7 +1,7 @@
 import {
   Camera,
   LocationManager,
-  Map,
+  Map as MapView,
   Marker,
   UserLocation,
   type CameraRef,
@@ -108,19 +108,38 @@ export function MapScreen({ navigation }: TabScreenProps<'Map'>) {
 
   useAutoRefresh(() => load('silent'), LOCATION_POLL_INTERVAL_MS);
 
+  // A person can belong to several groups, and /locations/latest returns one
+  // row per group. Show each person once, keeping the freshest position.
+  const people = useMemo<MemberLocation[]>(() => {
+    const byUser = new Map<string, MemberLocation>();
+
+    for (const location of locations) {
+      const key = String(location.user?.id ?? location.id);
+      const existing = byUser.get(key);
+      const isFresher =
+        !existing ||
+        new Date(location.updatedAt).getTime() >
+          new Date(existing.updatedAt).getTime();
+
+      if (isFresher) byUser.set(key, location);
+    }
+
+    return Array.from(byUser.values());
+  }, [locations]);
+
   const selected = useMemo(
-    () => locations.find((item) => item.user.id === selectedUserId) ?? null,
-    [locations, selectedUserId],
+    () => people.find((item) => item.user.id === selectedUserId) ?? null,
+    [people, selectedUserId],
   );
 
   const fitAll = useCallback(() => {
-    if (locations.length === 0) return;
+    if (people.length === 0) return;
 
     // "Show everyone" also clears the focused member card.
     setSelectedUserId(null);
 
-    if (locations.length === 1) {
-      const only = locations[0];
+    if (people.length === 1) {
+      const only = people[0];
       cameraRef.current?.flyTo({
         center: [only.longitude, only.latitude],
         zoom: 15,
@@ -129,8 +148,8 @@ export function MapScreen({ navigation }: TabScreenProps<'Map'>) {
       return;
     }
 
-    const longitudes = locations.map((item) => item.longitude);
-    const latitudes = locations.map((item) => item.latitude);
+    const longitudes = people.map((item) => item.longitude);
+    const latitudes = people.map((item) => item.latitude);
 
     cameraRef.current?.fitBounds(
       [
@@ -150,19 +169,19 @@ export function MapScreen({ navigation }: TabScreenProps<'Map'>) {
         duration: 800,
       },
     );
-  }, [locations]);
+  }, [people]);
 
   // Frame everybody once, as soon as both the map and the data are ready.
   useEffect(() => {
-    if (didAutoFitRef.current || !mapReady || locations.length === 0) return;
+    if (didAutoFitRef.current || !mapReady || people.length === 0) return;
     didAutoFitRef.current = true;
     const timeout = setTimeout(fitAll, 300);
     return () => clearTimeout(timeout);
-  }, [fitAll, locations.length, mapReady]);
+  }, [fitAll, people.length, mapReady]);
 
   // With nobody to show, open the map where the user actually is.
   useEffect(() => {
-    if (!mapReady || locations.length > 0) return;
+    if (!mapReady || people.length > 0) return;
     let cancelled = false;
 
     void (async () => {
@@ -183,7 +202,7 @@ export function MapScreen({ navigation }: TabScreenProps<'Map'>) {
     return () => {
       cancelled = true;
     };
-  }, [locations.length, mapReady]);
+  }, [people.length, mapReady]);
 
   const focusMember = useCallback((member: MemberLocation) => {
     setSelectedUserId(member.user.id);
@@ -234,7 +253,7 @@ export function MapScreen({ navigation }: TabScreenProps<'Map'>) {
     );
   }
 
-  const count = locations.length;
+  const count = people.length;
   const selectedBattery = selected ? formatBattery(selected.batteryLevel) : null;
   const selectedMeta = selected
     ? [
@@ -254,7 +273,7 @@ export function MapScreen({ navigation }: TabScreenProps<'Map'>) {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <Map
+      <MapView
         key={mapKey}
         style={StyleSheet.absoluteFill}
         mapStyle={MAP_STYLE_URL}
@@ -272,7 +291,7 @@ export function MapScreen({ navigation }: TabScreenProps<'Map'>) {
 
         <UserLocation accuracy />
 
-        {locations.map((member) => (
+        {people.map((member) => (
           <Marker
             key={member.user.id}
             id={member.user.id}
@@ -288,7 +307,7 @@ export function MapScreen({ navigation }: TabScreenProps<'Map'>) {
             />
           </Marker>
         ))}
-      </Map>
+      </MapView>
 
       {/* Floating header: the only persistent chrome on top of the map. */}
       <View
@@ -471,7 +490,7 @@ export function MapScreen({ navigation }: TabScreenProps<'Map'>) {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={{ gap: spacing.sm }}
             >
-              {locations.map((member) => (
+              {people.map((member) => (
                 <MemberChip
                   key={member.id}
                   name={displayName(member)}

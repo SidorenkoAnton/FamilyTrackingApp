@@ -22,6 +22,7 @@ import {
 } from '../services/BackgroundLocationService';
 import type { User } from '../types';
 import { ApiError } from '../utils/errors';
+import { normalizeUser } from '../utils/user';
 import {
   hasBackgroundLocationPermission,
   hasForegroundLocationPermission,
@@ -144,7 +145,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         setApiToken(storedToken);
-        const cachedUser = cachedUserRaw ? (JSON.parse(cachedUserRaw) as User) : null;
+        const cachedUser = cachedUserRaw
+          ? normalizeUser(JSON.parse(cachedUserRaw))
+          : null;
 
         if (mounted) {
           setToken(storedToken);

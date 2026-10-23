@@ -25,13 +25,15 @@ export interface GroupSummary {
 /** One row of GET /groups — the group plus the current user's role. */
 export interface GroupMembership {
   id: string;
-  role: Role;
+  /** owner | superadmin | admin | member | child — normalised in the UI layer. */
+  role: string;
   group: GroupSummary;
 }
 
 export interface GroupMember {
   id: string;
-  role: Role;
+  /** owner | superadmin | admin | member | child — normalised in the UI layer. */
+  role: string;
   user: User;
 }
 

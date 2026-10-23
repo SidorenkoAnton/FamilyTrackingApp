@@ -26,15 +26,21 @@ import type { GroupsScreenProps } from '../navigation/types';
 import type { GroupDetail, Role } from '../types';
 import { getErrorMessage } from '../utils/errors';
 import { plural } from '../utils/format';
+import { isSameUser, normalizeRole } from '../utils/roles';
 import { validateEmail } from '../utils/validation';
 
 export function GroupDetailScreen({ route, navigation }: GroupsScreenProps<'GroupDetail'>) {
-  const { groupId, groupName } = route.params;
+  const { groupId, groupName, role: initialRole } = route.params;
   const { user } = useAuth();
   const { colors } = useAppTheme();
   const toast = useToast();
 
   const [group, setGroup] = useState<GroupDetail | null>(null);
+  // Role from GET /groups is authoritative; the detail payload may omit the
+  // current user or use a different role name ("owner").
+  const [membershipRole, setMembershipRole] = useState<string | null>(
+    initialRole ?? null,
+  );
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,10 +59,19 @@ export function GroupDetailScreen({ route, navigation }: GroupsScreenProps<'Grou
       if (mode === 'refresh') setRefreshing(true);
 
       try {
-        const data = await groupsApi.detail(groupId);
+        const [data, memberships] = await Promise.all([
+          groupsApi.detail(groupId),
+          groupsApi.list().catch(() => null),
+        ]);
+
         setGroup(data);
         setError(null);
         hasGroupRef.current = true;
+
+        const mine = memberships?.find(
+          (item) => String(item.group?.id) === String(groupId),
+        );
+        if (mine?.role) setMembershipRole(mine.role);
       } catch (loadError) {
         if (!hasGroupRef.current) {
           setError(getErrorMessage(loadError, 'Не удалось загрузить группу'));
@@ -87,12 +102,24 @@ export function GroupDetailScreen({ route, navigation }: GroupsScreenProps<'Grou
     }
   }, [group?.name, groupName, navigation]);
 
-  const myRole = useMemo<Role>(() => {
-    const me = group?.members.find((member) => member.user.id === user?.id);
-    return me?.role ?? 'member';
-  }, [group?.members, user?.id]);
+  const rawRole = useMemo<string | null>(() => {
+    if (membershipRole) return membershipRole;
 
-  const isAdmin = myRole === 'admin' || group?.ownerId === user?.id;
+    const me = group?.members?.find((member) => isSameUser(member.user, user));
+    return me?.role ?? null;
+  }, [membershipRole, group?.members, user]);
+
+  const isOwner = Boolean(
+    group?.ownerId != null &&
+      user?.id != null &&
+      String(group.ownerId) === String(user.id),
+  );
+  const resolvedRole = normalizeRole(rawRole);
+  const isAdmin = resolvedRole === 'admin' || isOwner;
+  // If the role could not be resolved at all, fail open: the backend still
+  // enforces permissions, but the user must never lose the invite button.
+  const canManage = isAdmin || resolvedRole === null;
+  const badgeRole = isOwner ? 'owner' : rawRole;
   const members = group?.members ?? [];
 
   const handleAddMember = async () => {
@@ -216,22 +243,17 @@ export function GroupDetailScreen({ route, navigation }: GroupsScreenProps<'Grou
             </AppText>
           ) : null}
 
-          <View
-            style={{
-              flexDirection: 'row',
-              flexWrap: 'wrap',
-              gap: spacing.sm,
-              marginTop: spacing.md,
-            }}
-          >
-            <RoleBadge role={myRole} />
-          </View>
+          {badgeRole ? (
+            <View style={{ marginTop: spacing.md }}>
+              <RoleBadge role={badgeRole} />
+            </View>
+          ) : null}
 
-          {isAdmin ? (
+          {canManage ? (
             <>
               <AppButton
-                label="Пригласить в группу"
-                icon="account-plus-outline"
+                label="Пригласить ребёнка"
+                icon="account-child-outline"
                 onPress={() =>
                   navigation.navigate('CreateInvite', { groupId, groupName: group.name })
                 }
@@ -259,7 +281,7 @@ export function GroupDetailScreen({ route, navigation }: GroupsScreenProps<'Grou
               </View>
             ) : (
               members.map((member, index) => {
-                const isMe = member.user.id === user?.id;
+                const isMe = isSameUser(member.user, user);
                 const isLast = index === members.length - 1;
 
                 return (
@@ -297,7 +319,7 @@ export function GroupDetailScreen({ route, navigation }: GroupsScreenProps<'Grou
           </Card>
         </Section>
 
-        {isAdmin ? (
+        {canManage ? (
           <Section title="Управление">
             <Card padded={false}>
               <ListRow
@@ -320,7 +342,7 @@ export function GroupDetailScreen({ route, navigation }: GroupsScreenProps<'Grou
         ) : (
           <InlineBanner
             tone="info"
-            message="Управлять группой может только администратор."
+            message="Добавлять участников по email и удалять группу может только администратор."
           />
         )}
 
