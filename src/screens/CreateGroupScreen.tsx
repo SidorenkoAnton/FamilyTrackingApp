@@ -1,72 +1,103 @@
 import React, { useState } from 'react';
-import { View, StyleSheet } from 'react-native';
-import { TextInput, Button, HelperText } from 'react-native-paper';
-import api from '../api/client';
+import { View } from 'react-native';
+import { groupsApi } from '../api';
+import {
+  AppButton,
+  AppInput,
+  AppText,
+  InlineBanner,
+  Screen,
+  useToast,
+} from '../components/ui';
+import { spacing } from '../design/tokens';
+import type { GroupsScreenProps } from '../navigation/types';
+import { getErrorMessage } from '../utils/errors';
+import { validateGroupName } from '../utils/validation';
 
-export const CreateGroupScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+export function CreateGroupScreen({ navigation }: GroupsScreenProps<'CreateGroup'>) {
+  const toast = useToast();
+
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [nameError, setNameError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const handleCreate = async () => {
-    if (!name.trim()) {
-      setError('Введите название группы');
+    const error = validateGroupName(name);
+    if (error) {
+      setNameError(error);
       return;
     }
 
-    setLoading(true);
-    setError('');
+    setNameError(null);
+    setFormError(null);
+    setSubmitting(true);
 
     try {
-      await api.post('/groups', { name, description });
+      await groupsApi.create({
+        name: name.trim(),
+        ...(description.trim() ? { description: description.trim() } : {}),
+      });
+      toast.show('Группа создана');
       navigation.goBack();
-    } catch (e: any) {
-      const message = e.response?.data?.message || 'Ошибка создания группы';
-      setError(message);
+    } catch (createError) {
+      setFormError(getErrorMessage(createError, 'Не удалось создать группу'));
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <TextInput
-        label="Название группы"
-        value={name}
-        onChangeText={setName}
-        mode="outlined"
-        style={styles.input}
-      />
+    <Screen
+      scroll
+      edges={['bottom']}
+      padded
+      avoidKeyboard
+      footer={
+        <AppButton
+          label="Создать группу"
+          large
+          onPress={handleCreate}
+          loading={submitting}
+        />
+      }
+    >
+      <View style={{ gap: spacing.lg }}>
+        <AppText variant="body" tone="textSecondary">
+          Группа объединяет вашу семью: участники видят друг друга на общей карте.
+          После создания вы сможете пригласить их по коду.
+        </AppText>
 
-      <TextInput
-        label="Описание (необязательно)"
-        value={description}
-        onChangeText={setDescription}
-        mode="outlined"
-        multiline
-        style={styles.input}
-      />
+        <AppInput
+          label="Название"
+          value={name}
+          onChangeText={(value) => {
+            setName(value);
+            if (nameError) setNameError(null);
+          }}
+          placeholder="Например, «Семья Ивановых»"
+          autoFocus
+          returnKeyType="next"
+          editable={!submitting}
+          errorText={nameError}
+          maxLength={60}
+        />
 
-      {error ? (
-        <HelperText type="error" visible={!!error}>
-          {error}
-        </HelperText>
-      ) : null}
+        <AppInput
+          label="Описание (необязательно)"
+          value={description}
+          onChangeText={setDescription}
+          placeholder="Коротко о группе"
+          multiline
+          numberOfLines={3}
+          maxLength={200}
+          editable={!submitting}
+          style={{ minHeight: 96 }}
+        />
 
-      <Button
-        mode="contained"
-        onPress={handleCreate}
-        loading={loading}
-        disabled={loading}
-      >
-        Создать
-      </Button>
-    </View>
+        {formError ? <InlineBanner message={formError} tone="danger" /> : null}
+      </View>
+    </Screen>
   );
-};
-
-const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16 },
-  input: { marginBottom: 16 },
-});
+}

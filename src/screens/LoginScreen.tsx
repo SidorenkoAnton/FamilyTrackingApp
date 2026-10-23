@@ -1,80 +1,127 @@
-import React, { useState } from 'react';
-import { Alert, View } from 'react-native';
-import { Button, TextInput, Text, HelperText } from 'react-native-paper';
+import React, { useRef, useState } from 'react';
+import { View } from 'react-native';
+import { TextInput } from 'react-native-paper';
+import { AuthShell } from '../components/AuthShell';
+import { AppButton, AppInput, AppText, InlineBanner } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
-import { theme } from '../theme';
+import { spacing } from '../design/tokens';
+import type { RootScreenProps } from '../navigation/types';
+import { getErrorMessage } from '../utils/errors';
+import { validateEmail, validatePassword } from '../utils/validation';
 
-export const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+type FieldErrors = {
+  email?: string;
+  password?: string;
+  form?: string;
+};
+
+export function LoginScreen({ navigation }: RootScreenProps<'Login'>) {
   const { login } = useAuth();
+  const passwordRef = useRef<React.ComponentRef<typeof TextInput>>(null);
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [errors, setErrors] = useState<FieldErrors>({});
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleLogin = async () => {
-    if (!email || !password) {
-      setError('Заполни все поля');
+  const handleSubmit = async () => {
+    const emailError = validateEmail(email);
+    const passwordError = validatePassword(password);
+
+    if (emailError || passwordError) {
+      setErrors({ email: emailError ?? undefined, password: passwordError ?? undefined });
       return;
     }
-    setError('');
-    setLoading(true);
+
+    setErrors({});
+    setSubmitting(true);
     try {
       await login(email, password);
-    } catch (e: any) {
-      const message = e.response?.data?.message || 'Ошибка входа';
-      setError(message);
+    } catch (error) {
+      setErrors({ form: getErrorMessage(error, 'Не удалось войти') });
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
   return (
-    <View style={{ flex: 1, justifyContent: 'center', padding: 30 }}>
-      <Text variant="displaySmall" style={{ textAlign: 'center', marginBottom: 8, color: theme.colors.primary }}>
-        Family Tracker
-      </Text>
-      <Text variant="bodyLarge" style={{ textAlign: 'center', marginBottom: 40 }}>
-        Войдите в аккаунт
-      </Text>
-
-      <TextInput
+    <AuthShell
+      title="С возвращением"
+      subtitle="Войдите, чтобы видеть, где сейчас ваша семья."
+      footer={
+        <View style={{ gap: spacing.md, alignItems: 'center' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <AppText variant="body" tone="textSecondary">
+              Впервые здесь?
+            </AppText>
+            <AppButton
+              label="Создать аккаунт"
+              mode="text"
+              onPress={() => navigation.navigate('Register')}
+            />
+          </View>
+          <AppText variant="caption" tone="textTertiary" center>
+            Геолокация используется только участниками вашей семьи.
+          </AppText>
+        </View>
+      }
+    >
+      <AppInput
         label="Email"
         value={email}
-        onChangeText={setEmail}
-        mode="outlined"
+        onChangeText={(value) => {
+          setEmail(value);
+          if (errors.email || errors.form) setErrors((prev) => ({ ...prev, email: undefined, form: undefined }));
+        }}
         keyboardType="email-address"
         autoCapitalize="none"
-        style={{ marginBottom: 15 }}
+        autoComplete="email"
+        textContentType="emailAddress"
+        returnKeyType="next"
+        autoFocus
+        editable={!submitting}
+        errorText={errors.email}
+        left={<TextInput.Icon icon="email-outline" />}
+        onSubmitEditing={() => passwordRef.current?.focus()}
+        accessibilityLabel="Email"
       />
 
-      <TextInput
+      <AppInput
+        ref={passwordRef}
         label="Пароль"
         value={password}
-        onChangeText={setPassword}
-        mode="outlined"
-        secureTextEntry
-        style={{ marginBottom: 15 }}
+        onChangeText={(value) => {
+          setPassword(value);
+          if (errors.password || errors.form) setErrors((prev) => ({ ...prev, password: undefined, form: undefined }));
+        }}
+        secureTextEntry={!showPassword}
+        autoCapitalize="none"
+        autoComplete="current-password"
+        textContentType="password"
+        returnKeyType="go"
+        editable={!submitting}
+        errorText={errors.password}
+        left={<TextInput.Icon icon="lock-outline" />}
+        right={
+          <TextInput.Icon
+            icon={showPassword ? 'eye-off-outline' : 'eye-outline'}
+            onPress={() => setShowPassword((value) => !value)}
+            forceTextInputFocus={false}
+          />
+        }
+        onSubmitEditing={handleSubmit}
       />
 
-      {error ? <HelperText type="error" visible={!!error}>{error}</HelperText> : null}
+      {errors.form ? <InlineBanner message={errors.form} tone="danger" /> : null}
 
-      <Button
-        mode="contained"
-        onPress={handleLogin}
-        loading={loading}
-        disabled={loading}
-        style={{ marginTop: 10 }}
-      >
-        Войти
-      </Button>
-
-      <Button
-        mode="text"
-        onPress={() => navigation.navigate('Register')}
-        style={{ marginTop: 20 }}
-      >
-        Нет аккаунта? Зарегистрироваться
-      </Button>
-    </View>
+      <AppButton
+        label="Войти"
+        large
+        onPress={handleSubmit}
+        loading={submitting}
+        style={{ marginTop: spacing.xs }}
+      />
+    </AuthShell>
   );
-};
+}

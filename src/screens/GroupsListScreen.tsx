@@ -1,97 +1,226 @@
-import React, { useState, useCallback } from 'react';
-import { View, StyleSheet, FlatList } from 'react-native';
-import { Text, Button, Card, ActivityIndicator } from 'react-native-paper';
 import { useFocusEffect } from '@react-navigation/native';
-import api from '../api/client';
+import React, { useCallback, useRef, useState } from 'react';
+import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
+import { groupsApi } from '../api';
+import { GroupCard } from '../components/GroupCard';
+import {
+  AppBar,
+  AppText,
+  BottomSheet,
+  EmptyState,
+  ErrorState,
+  IconAction,
+  InlineBanner,
+  Screen,
+  SheetAction,
+  Skeleton,
+} from '../components/ui';
+import { spacing } from '../design/tokens';
+import { useAppTheme } from '../design/ThemeContext';
+import type { GroupsScreenProps } from '../navigation/types';
+import type { GroupMembership } from '../types';
+import { getErrorMessage } from '../utils/errors';
+import { plural } from '../utils/format';
 
-interface GroupData {
-  id: string;
-  role: string;
-  group: {
-    id: string;
-    name: string;
-    description?: string;
-  };
-}
+export function GroupsListScreen({ navigation }: GroupsScreenProps<'GroupsList'>) {
+  const { colors } = useAppTheme();
+  const hasGroupsRef = useRef(false);
 
-export const GroupsListScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
-  const [groups, setGroups] = useState<GroupData[]>([]);
+  const [groups, setGroups] = useState<GroupMembership[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [staleError, setStaleError] = useState<string | null>(null);
+  const [addSheetVisible, setAddSheetVisible] = useState(false);
 
-  const loadGroups = async () => {
+  const load = useCallback(async (mode: 'initial' | 'refresh' | 'silent' = 'silent') => {
+    if (mode === 'initial') setLoading(true);
+    if (mode === 'refresh') setRefreshing(true);
+
     try {
-      setLoading(true);
-      const response = await api.get('/groups');
-      setGroups(response.data);
-    } catch (e) {
-      console.error('Ошибка загрузки групп:', e);
+      const data = await groupsApi.list();
+      setGroups(data);
+      setError(null);
+      setStaleError(null);
+    } catch (loadError) {
+      const message = getErrorMessage(loadError, 'Не удалось загрузить группы');
+      if (hasGroupsRef.current) {
+        setStaleError(message);
+      } else {
+        setError(message);
+      }
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  };
+  }, []);
 
-  // Обновляем список каждый раз, когда экран появляется
   useFocusEffect(
     useCallback(() => {
-      loadGroups();
-    }, []),
+      void load(hasGroupsRef.current ? 'silent' : 'initial');
+    }, [load]),
   );
 
-  if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" />
-      </View>
-    );
-  }
+  React.useEffect(() => {
+    hasGroupsRef.current = groups.length > 0;
+  }, [groups]);
+
+  const openCreateGroup = () => {
+    setAddSheetVisible(false);
+    navigation.navigate('CreateGroup');
+  };
+
+  const openJoinGroup = () => {
+    setAddSheetVisible(false);
+    navigation.navigate('JoinGroup');
+  };
+
+  const subtitle =
+    groups.length > 0
+      ? `${groups.length} ${plural(groups.length, 'группа', 'группы', 'групп')}`
+      : 'Семейные группы';
 
   return (
-    <View style={styles.container}>
-      <Button
-        mode="contained"
-        onPress={() => navigation.navigate('CreateGroup')}
-        style={styles.createButton}
-      >
-        Создать группу
-      </Button>
+    <Screen edges={['top']}>
+      <AppBar
+        title="Группы"
+        subtitle={subtitle}
+        actions={
+          <IconAction
+            icon="plus"
+            accessibilityLabel="Добавить группу"
+            variant="primary"
+            onPress={() => setAddSheetVisible(true)}
+          />
+        }
+      />
 
-      {groups.length === 0 ? (
-        <View style={styles.center}>
-          <Text>У вас пока нет групп</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={groups}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
-          renderItem={({ item }) => (
-            <Card
-              style={styles.card}
-              onPress={() =>
-                navigation.navigate('GroupDetail', { groupId: item.group.id })
-              }
-            >
-              <Card.Title
-                title={item.group.name}
-                subtitle={`Ваша роль: ${item.role}`}
+      <View style={{ flex: 1 }}>
+        {loading ? (
+          <GroupListSkeleton />
+        ) : error && groups.length === 0 ? (
+          <View style={{ flex: 1, justifyContent: 'center' }}>
+            <ErrorState message={error} onRetry={() => load('initial')} />
+          </View>
+        ) : groups.length === 0 ? (
+          <View style={{ flex: 1, justifyContent: 'center' }}>
+            <EmptyState
+              icon="account-group-outline"
+              title="Пока нет групп"
+              description="Создайте семейную группу или присоединитесь к уже существующей по коду приглашения."
+              actionLabel="Создать группу"
+              onAction={openCreateGroup}
+              secondaryLabel="Войти по коду"
+              onSecondary={openJoinGroup}
+            />
+          </View>
+        ) : (
+          <FlatList
+            data={groups}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={{
+              paddingHorizontal: spacing.xl,
+              paddingBottom: spacing.xxl,
+              gap: spacing.sm + 2,
+            }}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={() => load('refresh')}
+                tintColor={colors.primary}
+                colors={[colors.primary]}
+                progressBackgroundColor={colors.surface}
               />
-              {item.group.description ? (
-                <Card.Content>
-                  <Text>{item.group.description}</Text>
-                </Card.Content>
-              ) : null}
-            </Card>
-          )}
-        />
-      )}
+            }
+            ListHeaderComponent={
+              staleError ? (
+                <InlineBanner
+                  message="Не удалось обновить список. Показаны прошлые данные."
+                  tone="warning"
+                  actionLabel="Повторить"
+                  onAction={() => load('silent')}
+                />
+              ) : null
+            }
+            ListFooterComponent={
+              <AppText
+                variant="caption"
+                tone="textTertiary"
+                center
+                style={{ marginTop: spacing.md }}
+              >
+                Нажмите на группу, чтобы увидеть участников и пригласить новых.
+              </AppText>
+            }
+            renderItem={({ item }) => (
+              <GroupCard
+                membership={item}
+                onPress={() =>
+                  navigation.navigate('GroupDetail', {
+                    groupId: item.group.id,
+                    groupName: item.group.name,
+                  })
+                }
+              />
+            )}
+          />
+        )}
+      </View>
+
+      <BottomSheet
+        visible={addSheetVisible}
+        onDismiss={() => setAddSheetVisible(false)}
+        title="Добавить группу"
+        description="Создайте новую семейную группу или войдите в существующую по коду."
+      >
+        <View style={{ paddingBottom: spacing.sm }}>
+          <SheetAction
+            icon="account-group-outline"
+            title="Создать группу"
+            subtitle="Вы станете её администратором"
+            tone="primary"
+            onPress={openCreateGroup}
+          />
+          <SheetAction
+            icon="ticket-confirmation-outline"
+            title="Войти по коду"
+            subtitle="Код приглашения даёт родитель"
+            onPress={openJoinGroup}
+          />
+        </View>
+      </BottomSheet>
+    </Screen>
+  );
+}
+
+function GroupListSkeleton() {
+  const { colors } = useAppTheme();
+
+  return (
+    <View style={{ paddingHorizontal: spacing.xl, gap: spacing.sm + 2 }}>
+      {[0, 1, 2].map((key) => (
+        <View
+          key={key}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: spacing.md,
+            padding: spacing.lg,
+            borderRadius: 18,
+            backgroundColor: colors.surface,
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: colors.border,
+          }}
+        >
+          <Skeleton width={48} height={48} radius={14} />
+          <View style={{ flex: 1, gap: 8 }}>
+            <Skeleton width="55%" height={16} />
+            <Skeleton width="80%" height={12} />
+          </View>
+          <Skeleton width={64} height={24} radius={12} />
+        </View>
+      ))}
     </View>
   );
-};
-
-const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  createButton: { marginBottom: 16 },
-  list: { paddingBottom: 20 },
-  card: { marginBottom: 12 },
-});
+}

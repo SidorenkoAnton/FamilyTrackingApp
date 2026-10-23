@@ -1,144 +1,150 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  Alert,
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-} from 'react-native';
+import React, { useRef, useState } from 'react';
+import { View } from 'react-native';
+import { TextInput } from 'react-native-paper';
+import { AuthShell } from '../components/AuthShell';
+import { AppButton, AppInput, AppText, InlineBanner } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
+import { spacing } from '../design/tokens';
+import type { RootScreenProps } from '../navigation/types';
+import { getErrorMessage } from '../utils/errors';
+import { validateEmail, validateName, validatePassword } from '../utils/validation';
 
-export const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+type FieldErrors = {
+  name?: string;
+  email?: string;
+  password?: string;
+  form?: string;
+};
+
+export function RegisterScreen({ navigation }: RootScreenProps<'Register'>) {
   const { register } = useAuth();
+  const emailRef = useRef<React.ComponentRef<typeof TextInput>>(null);
+  const passwordRef = useRef<React.ComponentRef<typeof TextInput>>(null);
+
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [errors, setErrors] = useState<FieldErrors>({});
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleRegister = async () => {
-    if (!email || !password) {
-      Alert.alert('Ошибка', 'Заполни email и пароль');
+  const handleSubmit = async () => {
+    const nameError = validateName(name);
+    const emailError = validateEmail(email);
+    const passwordError = validatePassword(password);
+
+    if (nameError || emailError || passwordError) {
+      setErrors({
+        name: nameError ?? undefined,
+        email: emailError ?? undefined,
+        password: passwordError ?? undefined,
+      });
       return;
     }
 
-    setLoading(true);
+    setErrors({});
+    setSubmitting(true);
     try {
       await register(email, password, name);
-    } catch (error: any) {
-        console.log('ПОЛНАЯ ОШИБКА:', JSON.stringify(error, null, 2));
-  console.log('ОТВЕТ СЕРВЕРА:', JSON.stringify(error.response?.data, null, 2));
-  console.log('СТАТУС:', error.response?.status);
-  console.log('URL:', error.config?.url);
-  console.log('BASE URL:', error.config?.baseURL);
-      const message = error.response?.data?.message || 'Ошибка регистрации';
-      Alert.alert('Ошибка', message);
+    } catch (error) {
+      setErrors({ form: getErrorMessage(error, 'Не удалось создать аккаунт') });
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
-console.log('qweqwewqewqewqewqewqewqewqewqeqe')
+
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    <AuthShell
+      title="Создать аккаунт"
+      subtitle="Пара минут — и вы сможете пригласить семью в одну группу."
+      footer={
+        <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
+          <AppText variant="body" tone="textSecondary">
+            Уже есть аккаунт?
+          </AppText>
+          <AppButton label="Войти" mode="text" onPress={() => navigation.goBack()} />
+        </View>
+      }
     >
-      <View style={styles.form}>
-        <Text style={styles.title}>Регистрация</Text>
+      <AppInput
+        label="Имя"
+        value={name}
+        onChangeText={(value) => {
+          setName(value);
+          if (errors.name || errors.form) setErrors((prev) => ({ ...prev, name: undefined, form: undefined }));
+        }}
+        autoCapitalize="words"
+        autoComplete="name"
+        textContentType="name"
+        returnKeyType="next"
+        autoFocus
+        editable={!submitting}
+        errorText={errors.name}
+        left={<TextInput.Icon icon="account-outline" />}
+        onSubmitEditing={() => emailRef.current?.focus()}
+        accessibilityLabel="Имя"
+      />
 
-        <TextInput
-          style={styles.input}
-          placeholder="Имя"
-          value={name}
-          onChangeText={setName}
-        />
+      <AppInput
+        ref={emailRef}
+        label="Email"
+        value={email}
+        onChangeText={(value) => {
+          setEmail(value);
+          if (errors.email || errors.form) setErrors((prev) => ({ ...prev, email: undefined, form: undefined }));
+        }}
+        keyboardType="email-address"
+        autoCapitalize="none"
+        autoComplete="email"
+        textContentType="emailAddress"
+        returnKeyType="next"
+        editable={!submitting}
+        errorText={errors.email}
+        left={<TextInput.Icon icon="email-outline" />}
+        onSubmitEditing={() => passwordRef.current?.focus()}
+      />
 
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
+      <AppInput
+        ref={passwordRef}
+        label="Пароль"
+        value={password}
+        onChangeText={(value) => {
+          setPassword(value);
+          if (errors.password || errors.form) setErrors((prev) => ({ ...prev, password: undefined, form: undefined }));
+        }}
+        secureTextEntry={!showPassword}
+        autoCapitalize="none"
+        autoComplete="new-password"
+        textContentType="newPassword"
+        returnKeyType="go"
+        editable={!submitting}
+        errorText={errors.password}
+        left={<TextInput.Icon icon="lock-outline" />}
+        right={
+          <TextInput.Icon
+            icon={showPassword ? 'eye-off-outline' : 'eye-outline'}
+            onPress={() => setShowPassword((value) => !value)}
+            forceTextInputFocus={false}
+          />
+        }
+        onSubmitEditing={handleSubmit}
+      />
 
-        <TextInput
-          style={styles.input}
-          placeholder="Пароль"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
+      {!errors.password ? (
+        <AppText variant="caption" tone="textTertiary" style={{ paddingHorizontal: spacing.xs }}>
+          Минимум 6 символов.
+        </AppText>
+      ) : null}
 
-        <TouchableOpacity
-          style={[styles.button, loading && styles.buttonDisabled]}
-          onPress={handleRegister}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Зарегистрироваться</Text>
-          )}
-        </TouchableOpacity>
+      {errors.form ? <InlineBanner message={errors.form} tone="danger" /> : null}
 
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.link}>Уже есть аккаунт? Войти</Text>
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+      <AppButton
+        label="Создать аккаунт"
+        large
+        onPress={handleSubmit}
+        loading={submitting}
+        style={{ marginTop: spacing.xs }}
+      />
+    </AuthShell>
   );
-};
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-    justifyContent: 'center',
-  },
-  form: {
-    paddingHorizontal: 30,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#2196F3',
-    textAlign: 'center',
-    marginBottom: 40,
-  },
-  input: {
-    backgroundColor: '#fff',
-    paddingHorizontal: 15,
-    paddingVertical: 15,
-    borderRadius: 10,
-    fontSize: 16,
-    marginBottom: 15,
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  button: {
-    backgroundColor: '#2196F3',
-    paddingVertical: 15,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  buttonDisabled: {
-    backgroundColor: '#90CAF9',
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  link: {
-    color: '#2196F3',
-    textAlign: 'center',
-    marginTop: 20,
-    fontSize: 16,
-  },
-});
+}
