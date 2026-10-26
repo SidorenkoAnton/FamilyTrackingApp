@@ -45,11 +45,6 @@ export function GroupDetailScreen({ route, navigation }: GroupsScreenProps<'Grou
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [addSheetVisible, setAddSheetVisible] = useState(false);
-  const [email, setEmail] = useState('');
-  const [role, setRole] = useState<Role>('child');
-  const [addError, setAddError] = useState<string | null>(null);
-  const [adding, setAdding] = useState(false);
 
   const hasGroupRef = useRef(false);
 
@@ -121,29 +116,6 @@ export function GroupDetailScreen({ route, navigation }: GroupsScreenProps<'Grou
   const canManage = isAdmin || resolvedRole === null;
   const badgeRole = isOwner ? 'owner' : rawRole;
   const members = group?.members ?? [];
-
-  const handleAddMember = async () => {
-    const emailError = validateEmail(email);
-    if (emailError) {
-      setAddError(emailError);
-      return;
-    }
-
-    setAdding(true);
-    setAddError(null);
-    try {
-      await groupsApi.addMember(groupId, email.trim(), role);
-      setAddSheetVisible(false);
-      setEmail('');
-      setRole('child');
-      toast.show('Участник добавлен в группу');
-      await load('silent');
-    } catch (addMemberError) {
-      setAddError(getErrorMessage(addMemberError, 'Не удалось добавить участника'));
-    } finally {
-      setAdding(false);
-    }
-  };
 
   const handleDelete = () => {
     Alert.alert(
@@ -323,13 +295,6 @@ export function GroupDetailScreen({ route, navigation }: GroupsScreenProps<'Grou
           <Section title="Управление">
             <Card padded={false}>
               <ListRow
-                icon="account-plus-outline"
-                iconTone="primary"
-                title="Добавить по email"
-                subtitle="Если человек уже зарегистрирован"
-                onPress={() => setAddSheetVisible(true)}
-              />
-              <ListRow
                 icon="trash-can-outline"
                 title="Удалить группу"
                 subtitle="Действие нельзя отменить"
@@ -348,56 +313,6 @@ export function GroupDetailScreen({ route, navigation }: GroupsScreenProps<'Grou
 
         <View style={{ height: spacing.sm }} />
       </View>
-
-      <BottomSheet
-        visible={addSheetVisible}
-        onDismiss={() => setAddSheetVisible(false)}
-        title="Добавить участника"
-        description="Человек должен быть уже зарегистрирован в Family Tracker."
-        footer={
-          <AppButton
-            label="Добавить"
-            onPress={handleAddMember}
-            loading={adding}
-            disabled={!email.trim()}
-          />
-        }
-      >
-        <View style={{ gap: spacing.lg }}>
-          <AppInput
-            label="Email"
-            value={email}
-            onChangeText={(value) => {
-              setEmail(value);
-              if (addError) setAddError(null);
-            }}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoComplete="email"
-            autoFocus
-            errorText={addError}
-            editable={!adding}
-          />
-
-          <View style={{ gap: spacing.sm }}>
-            <AppText variant="label" tone="textSecondary">
-              Роль
-            </AppText>
-            <SegmentedButtons
-              value={role}
-              onValueChange={(value) => setRole(value as Role)}
-              buttons={[
-                { value: 'child', label: 'Ребёнок' },
-                { value: 'member', label: 'Взрослый' },
-                { value: 'admin', label: 'Админ' },
-              ]}
-            />
-            <AppText variant="caption" tone="textTertiary">
-              Роль «Ребёнок» включает фоновую передачу геолокации на его устройстве.
-            </AppText>
-          </View>
-        </View>
-      </BottomSheet>
     </Screen>
   );
 }
